@@ -9,7 +9,7 @@ CFLAGS = --std=gnu99
 SRCEXT = c
 
 BINDIR = .
-exe_file = movies
+exe_file = movies_by_year
 #$(BINDIR)/$(shell basename "${PWD}")
 
 # Handle debug case
