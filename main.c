@@ -1,6 +1,3 @@
-// If you are not compiling with the gcc option --std=gnu99, then
-// uncomment the following line or you might get a compiler warning
-//#define _GNU_SOURCE
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -19,28 +16,9 @@
 
 #define PREFIX "movies_"
 #define EXTENSION ".csv"
-/* struct for movie information */
-struct movie
-{
-    char* title;
-    int year;
-    char** languages;
-    double rating;
-    struct movie* next;
-};
-
-/* struct for movie queue and array of highest rated movies per year */
-struct dataContainer
-{
-    struct movie* head;
-    struct movie** bestByYear;
-    int movieCount;
-};
-
-
 
 /* Parse the current line which is comma delimited and create a
-*  movie struct with the data in this line
+*  file with the name of each movie by year
 */
 void writeMovie(char* currLine, char* dirName)
 {
@@ -76,9 +54,11 @@ void writeMovie(char* currLine, char* dirName)
     }
 
     // We write a string to the file
-    write(fd, title, strlen(title) + 1);
+    write(fd, title, strlen(title));
     // Close the file descriptor
     close(fd);
+    free(title);
+    free(newFilePath);
 }
 
 /*
@@ -90,6 +70,7 @@ void processFile(char* filePath)
     printf("Now processing the chosen file named ");
     printf(filePath);
     printf("\n");
+    //create directory
     int randVal = random() % 100000;
     char buffer[50];
     sprintf(buffer, "%d", randVal);
@@ -119,38 +100,11 @@ void processFile(char* filePath)
             continue;
         }
 
-        // Get write the movie to the file
+        // Write the movie to the file
         writeMovie(currLine, dirName);
     }
     free(currLine);
     fclose(movieFile);
-}
-
-/*
-* Print data for the given movie
-*/
-void printMovie(struct movie* aMovie) {
-    printf("%s, %i, %.2f\n", aMovie->title,
-        aMovie->year,
-        aMovie->rating);
-    int index = 0;
-    while (aMovie->languages[index] != 0 && index<5) {
-        printf("%s\n", (aMovie->languages[index]));
-        index++;
-    }
-}
-
-/*
-* Print the linked list of movies
-*/
-void printMovieList(struct dataContainer* container)
-{
-    struct movie* list = container->head;
-    while (list != NULL)
-    {
-        printMovie(list);
-        list = list->next;
-    }
 }
 
 /*
@@ -183,9 +137,7 @@ char* findLargestFile()
                     entryName = calloc(256, sizeof(char));
                     strcpy(entryName, aDir->d_name);
                 }
-
             }
-
         }
     }
     return entryName;
@@ -222,9 +174,7 @@ char* findSmallestFile()
                     entryName = calloc(256, sizeof(char));
                     strcpy(entryName, aDir->d_name);
                 }
-
             }
-
         }
     }
     return entryName;
@@ -251,18 +201,18 @@ bool findFile(char* fileName)
 }
 
 /*
-*   Process the file provided as an argument to the program to
-*   create a linked list of movie structs and prompt the user for actions.
+*   Process the file provided specified either by size or file name
+*   add movies to files based on years
 *   Compile the program as follows:
 *       gcc --std=gnu99 -o movies main.c
 */
-
 int main(int argc, char* argv[])
 {
     time_t t;
     int seed = time(&t);
     srandom((unsigned)seed);
     bool askAgain = true;
+    //run outer loop asking if user would like to specify a file
     do {
         printf("1. Select file to process\n");
         printf("2. Exit the program\n\n");
@@ -274,6 +224,7 @@ int main(int argc, char* argv[])
         switch (choice) {
         case 1:
             do {
+                //run inner loop checking if user would like a file based on size or name
                 printf("Which file do you want to process?\n");
                 printf("Enter 1 to pick the largest file\n");
                 printf("Enter 2 to pick the smallest file\n");
