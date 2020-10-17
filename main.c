@@ -10,6 +10,12 @@
 #include <sys/stat.h>
 #include <unistd.h>
 #include <dirent.h>
+#include <time.h>
+#include <fcntl.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <sys/stat.h>
+
 
 #define PREFIX "movies_"
 #define EXTENSION ".csv"
@@ -36,79 +42,65 @@ struct dataContainer
 /* Parse the current line which is comma delimited and create a
 *  movie struct with the data in this line
 */
-struct movie* createMovie(char* currLine)
+void writeMovie(char* currLine, char* dirName)
 {
-    struct movie* currMovie = malloc(sizeof(struct movie));
-
     // For use with strtok_r
     char* saveptr;
 
     // The first token is the title
     char* token = strtok_r(currLine, ",", &saveptr);
-    currMovie->title = calloc(strlen(token) + 1, sizeof(char));
-    strcpy(currMovie->title, token);
+    char* title = calloc(strlen(token) + 2, sizeof(char));
+    strcpy(title, token);
+    strcat(title, "\n");
 
     // The next token is the year
     token = strtok_r(NULL, ",", &saveptr);
-    currMovie->year = atoi(token);
+    int year = atoi(token);
 
-    // The next token is the languages
-    token = strtok_r(NULL, ",", &saveptr);
-    // create languages array
-    char** languages = calloc( 5 , sizeof(char*));
-    // new pointer to run strtok_r on substring with array elements
-    char* saveptrLocation;
-    // move pointer past the opening bracket '['
-    token++;
-    // make temp pointer for finding number of elements
-    char* tempToken = token;
-    int count = 0;
-    // find number of elements by counting ';' in array
-    while (tempToken < saveptr) {
-        if (*tempToken == ';') {
-            count++;
-        }
-        tempToken++;
-    }
-    // get each element before the closing bracket
-    for (int i = 0; i < count;i++) {
-        if (i == 0) {
-            token = strtok_r(token, ";", &saveptrLocation);
-        }
-        else {
-            token = strtok_r(NULL, ";", &saveptrLocation);
-        }
-        languages[i] = calloc(21, sizeof(char));
-        strcpy(languages[i], token);
-    }
-    // get the last element of the array
-    if (count == 0) {
-        token = strtok_r(token, "]", &saveptrLocation);
-    }
-    else {
-        token = strtok_r(NULL, "]", &saveptrLocation);
-    }
-    languages[count] = calloc(20, sizeof(char));
-    strcpy(languages[count], token);
-    currMovie->languages = languages;
+    // a large amount of this code comes from the files module of this class
+    int fd;
+    char* newFilePath = calloc(100, sizeof(char));
+    strcpy(newFilePath, dirName);
+    strcat(newFilePath, "/");
+    char buffer[50];
+    sprintf(buffer, "%d", year);
+    strcat(newFilePath, buffer);
+    strcat(newFilePath, ".txt");
 
-    // The last token is the rating
-    token = strtok_r(NULL, "\n", &saveptr);
-    char* ptr;
-    currMovie->rating = strtod(token, &ptr);
+    // We first open a file for read write, creating it if necessary and truncating it if it already exists
+    fd = open(newFilePath, O_RDWR | O_CREAT | O_APPEND, 0640);
+    if (fd == -1) {
+        printf("open() failed on \"%s\"\n", newFilePath);
+        perror("Error");
+        exit(1);
+    }
 
-    // Set the next node to NULL in the newly created student entry
-    currMovie->next = NULL;
-
-    return currMovie;
+    // We write a string to the file
+    write(fd, title, strlen(title) + 1);
+    // Close the file descriptor
+    close(fd);
 }
 
 /*
 * Return a linked list of students by parsing data from
 * each line of the specified file.
 */
-struct dataContainer* processFile(char* filePath)
+void processFile(char* filePath)
 {
+    printf("Now processing the chosen file named ");
+    printf(filePath);
+    printf("\n");
+    int randVal = random() % 100000;
+    char buffer[50];
+    sprintf(buffer, "%d", randVal);
+    char* dirName = calloc(50, sizeof(char));
+    strcpy(dirName, "cairnsi.movies.");
+    strcat(dirName, buffer);
+    mkdir(dirName, 0750);
+    printf("Created directory with name ");
+    printf(dirName);
+    printf("\n\n");
+
     // Open the specified file for reading only
     FILE* movieFile = fopen(filePath, "r");
 
@@ -116,13 +108,8 @@ struct dataContainer* processFile(char* filePath)
     size_t len = 0;
     size_t nread;
 
-    // The head of the linked list
-    struct movie* head = NULL;
-    // The tail of the linked list
-    struct movie* tail = NULL;
 
     bool firstLine = true;
-    int movieCount = 0;
 
     // Read the file line by line
     while ((nread = getline(&currLine, &len, movieFile)) != -1)
@@ -132,55 +119,11 @@ struct dataContainer* processFile(char* filePath)
             continue;
         }
 
-        movieCount++;
-        // Get a new student node corresponding to the current line
-        struct movie* newNode = createMovie(currLine);
-
-        // Is this the first node in the linked list?
-        if (head == NULL)
-        {
-            // This is the first node in the linked link
-            // Set the head and the tail to this node
-            head = newNode;
-            tail = newNode;
-        }
-        else
-        {
-            // This is not the first node.
-            // Add this node to the list and advance the tail
-            tail->next = newNode;
-            tail = newNode;
-        }
+        // Get write the movie to the file
+        writeMovie(currLine, dirName);
     }
     free(currLine);
     fclose(movieFile);
-
-    struct dataContainer *container = malloc(sizeof(struct dataContainer));
-    container->head = head;
-    container->bestByYear = calloc(movieCount, sizeof(struct movie*));
-    container->movieCount = movieCount;
-    
-    struct movie* ptr = head;
-
-    while (ptr != NULL) {
-        for (int i = 0; i < movieCount; i++) {
-            if (container->bestByYear[i] == 0) {
-                container->bestByYear[i] = ptr;
-                break;
-            }
-            else if (container->bestByYear[i]->year == ptr->year) {
-                if (container->bestByYear[i]->rating < ptr->rating) {
-                    container->bestByYear[i] = ptr;
-                }
-                break;
-            }
-        }
-
-        ptr = ptr->next;
-    }
-    printf("Processed file %s and parsed data for %d movies\n\n", filePath , movieCount);
-
-    return container;
 }
 
 /*
@@ -316,6 +259,9 @@ bool findFile(char* fileName)
 
 int main(int argc, char* argv[])
 {
+    time_t t;
+    int seed = time(&t);
+    srandom((unsigned)seed);
     bool askAgain = true;
     do {
         printf("1. Select file to process\n");
@@ -323,6 +269,7 @@ int main(int argc, char* argv[])
         printf("Enter a choice 1 or 2: ");
         bool promptSecondChoice;
         int choice;
+        char* fileName;
         scanf("%d", &choice);
         switch (choice) {
         case 1:
@@ -334,7 +281,6 @@ int main(int argc, char* argv[])
                 printf("Enter a choice from 1 to 3 : ");
                 int secondChoice;
                 scanf("%d", &secondChoice);
-                char* fileName;
                 switch (secondChoice) {
                 case 1:
                     fileName = findLargestFile();
@@ -346,20 +292,20 @@ int main(int argc, char* argv[])
                     break;
                 case 3:
                     printf("Enter the complete file name: ");
-                    char* inputFileName = calloc(256, sizeof(char));
-                    scanf("%s", inputFileName);
-                    bool found = findFile(inputFileName);
+                    fileName = calloc(256, sizeof(char));
+                    scanf("%s", fileName);
+                    bool found = findFile(fileName);
                     if (found) {
                         promptSecondChoice = false;
                     }
                     else {
                         printf("The file ");
-                        printf(inputFileName);
+                        printf(fileName);
                         printf(" was not found. Try again\n\n");
                         promptSecondChoice = true;
+                        free(fileName);
                     }
 
-                    free(inputFileName);
                     break;
                 default:
                     printf("You entered an incorrect choice. Try again.\n\n");
@@ -367,7 +313,8 @@ int main(int argc, char* argv[])
                     break;
                 }
             } while (promptSecondChoice);
-
+            processFile(fileName);
+            free(fileName);
             break;
         case 2:
             askAgain = false;
