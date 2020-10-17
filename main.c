@@ -284,10 +284,27 @@ char* findSmallestFile()
 
         }
     }
-    printf("smallest file\n");
-    printf(entryName);
-    printf("\n");
     return entryName;
+}
+
+/*
+* Find file
+*/
+bool findFile(char* fileName)
+{
+    // Open the current directory
+    // A majortiy of the code in this function is found in the Directories module of this class
+    DIR* currDir = opendir(".");
+    struct dirent* aDir;
+    bool found = false;
+    // Go through all the entries
+    while ((aDir = readdir(currDir)) != NULL) {
+        //check file name
+        if (strncmp(fileName, aDir->d_name, strlen(fileName)) == 0) {
+            found = true;
+        }
+    }
+    return found;
 }
 
 /*
@@ -328,7 +345,21 @@ int main(int argc, char* argv[])
                     promptSecondChoice = false;
                     break;
                 case 3:
-                    promptSecondChoice = false;
+                    printf("Enter the complete file name: ");
+                    char* inputFileName = calloc(256, sizeof(char));
+                    scanf("%s", inputFileName);
+                    bool found = findFile(inputFileName);
+                    if (found) {
+                        promptSecondChoice = false;
+                    }
+                    else {
+                        printf("The file ");
+                        printf(inputFileName);
+                        printf(" was not found. Try again\n\n");
+                        promptSecondChoice = true;
+                    }
+
+                    free(inputFileName);
                     break;
                 default:
                     printf("You entered an incorrect choice. Try again.\n\n");
