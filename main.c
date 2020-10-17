@@ -6,7 +6,13 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdbool.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <unistd.h>
+#include <dirent.h>
 
+#define PREFIX "movies_"
+#define EXTENSION ".csv"
 /* struct for movie information */
 struct movie
 {
@@ -205,65 +211,83 @@ void printMovieList(struct dataContainer* container)
 }
 
 /*
-* Print the linked list of movies by year
+* Find largest file
 */
-void printByYear(struct movie* list, int year)
+char* findLargestFile()
 {
-    bool found = false;
-    while (list != NULL)
-    {
-        if (list->year == year) {
-            printf("%s\n", list->title);
-            found = true;
+    // Open the current directory
+    // A majortiy of the code in this function is found in the Directories module of this class
+    DIR* currDir = opendir(".");
+    struct dirent* aDir;
+    struct stat dirStat;
+    char* entryName = calloc(256, sizeof(char));
+    off_t size = 0;
+    // Go through all the entries
+    while ((aDir = readdir(currDir)) != NULL) {
+        //check prefix
+        if (strncmp(PREFIX, aDir->d_name, strlen(PREFIX)) == 0) {
+            int fileNameLength = strlen(aDir->d_name);
+            char* ptr = aDir->d_name;
+            //move pointer to end of name to check 3 letter extension
+            ptr += (fileNameLength - 4);
+            //check extension
+            if (strncmp(EXTENSION, ptr, strlen(EXTENSION)) == 0) {
+                stat(aDir->d_name, &dirStat);
+                //check size
+                if (dirStat.st_size > size) {
+                    size = dirStat.st_size;
+                    free(entryName);
+                    entryName = calloc(256, sizeof(char));
+                    strcpy(entryName, aDir->d_name);
+                }
+
+            }
+
         }
-        list = list->next;
     }
-    
-    if (!found) {
-        printf("No data about movies released in the year %d\n", year);
-    }
-    printf("\n");
+    return entryName;
 }
 
-/*
-* Print the linked list of movies by highest rated
-*/
-void printHighestRated(struct dataContainer* container)
-{
-    for (int i = 0; i < container->movieCount; i++) {
-        if (container->bestByYear[i] == 0) {
-            break;
-        }
-        struct movie* current = container->bestByYear[i];
-        printf("%i %.2f %s\n", current->year, current->rating, current->title);
-    }
-    printf("\n");
-}
 
 /*
-* Print the linked list of movies by language
+* Find smallest file
 */
-void printByLanguage(struct movie* list, char* language)
+char* findSmallestFile()
 {
-    bool found = false;
-    while (list != NULL)
-    {
-        for (int i = 0; i < 5; i++) {
-            if (list->languages[i] == 0) {
-                break;
-            }
-            else if (strcmp(list->languages[i], language) == 0) {
-                found = true;
-                printf("%d %s\n", list->year, list->title);
-            }
-        }
-        list = list->next;
-    }
+    // Open the current directory
+    // A majortiy of the code in this function is found in the Directories module of this class
+    DIR* currDir = opendir(".");
+    struct dirent* aDir;
+    struct stat dirStat;
+    char* entryName = calloc(256, sizeof(char));
+    off_t size = 0;
+    // Go through all the entries
+    while ((aDir = readdir(currDir)) != NULL) {
+        //check prefix
+        if (strncmp(PREFIX, aDir->d_name, strlen(PREFIX)) == 0) {
+            int fileNameLength = strlen(aDir->d_name);
+            char* ptr = aDir->d_name;
+            //move pointer to end of name to check 3 letter extension
+            ptr += (fileNameLength - 4);
+            //check extension
+            if (strncmp(EXTENSION, ptr, strlen(EXTENSION)) == 0) {
+                stat(aDir->d_name, &dirStat);
+                //check size
+                if (dirStat.st_size < size || size == 0) {
+                    size = dirStat.st_size;
+                    free(entryName);
+                    entryName = calloc(256, sizeof(char));
+                    strcpy(entryName, aDir->d_name);
+                }
 
-    if (!found) {
-        printf("No data about movies released in %s\n", language);
+            }
+
+        }
     }
+    printf("smallest file\n");
+    printf(entryName);
     printf("\n");
+    return entryName;
 }
 
 /*
@@ -280,10 +304,39 @@ int main(int argc, char* argv[])
         printf("1. Select file to process\n");
         printf("2. Exit the program\n\n");
         printf("Enter a choice 1 or 2: ");
+        bool promptSecondChoice;
         int choice;
         scanf("%d", &choice);
         switch (choice) {
         case 1:
+            do {
+                printf("Which file do you want to process?\n");
+                printf("Enter 1 to pick the largest file\n");
+                printf("Enter 2 to pick the smallest file\n");
+                printf("Enter 3 to specify the name of a file\n\n");
+                printf("Enter a choice from 1 to 3 : ");
+                int secondChoice;
+                scanf("%d", &secondChoice);
+                char* fileName;
+                switch (secondChoice) {
+                case 1:
+                    fileName = findLargestFile();
+                    promptSecondChoice = false;
+                    break;
+                case 2:
+                    fileName = findSmallestFile();
+                    promptSecondChoice = false;
+                    break;
+                case 3:
+                    promptSecondChoice = false;
+                    break;
+                default:
+                    printf("You entered an incorrect choice. Try again.\n\n");
+                    promptSecondChoice = true;
+                    break;
+                }
+            } while (promptSecondChoice);
+
             break;
         case 2:
             askAgain = false;
